@@ -394,5 +394,116 @@ DELIMITER ;
 
 call CancelOrder(5);
 
+DELIMITER //
 
+CREATE PROCEDURE CheckBooking(
+    IN p_BookingDate DATE,
+    IN p_TableNumber INT
+)
+BEGIN
+    DECLARE tableBooked INT;
 
+    SELECT COUNT(*) INTO tableBooked
+    FROM Booking
+    WHERE BookingDate = p_BookingDate
+      AND TableNumber = p_TableNumber;
+
+    IF tableBooked > 0 THEN
+        SELECT CONCAT('Table ', p_TableNumber, ' is already booked on ', p_BookingDate) AS BookingStatus;
+    ELSE
+        SELECT CONCAT('Table ', p_TableNumber, ' is available on ', p_BookingDate) AS BookingStatus;
+    END IF;
+END //
+
+DELIMITER ;
+
+CALL CheckBooking('2022-10-10', 5);
+
+DELIMITER //
+
+CREATE PROCEDURE AddValidBooking(
+    IN p_BookingDate DATE,
+    IN p_TableNumber INT,
+    IN p_CustomerID INT
+)
+BEGIN
+    DECLARE tableBooked INT;
+
+    START TRANSACTION;
+
+    SELECT COUNT(*) INTO tableBooked
+    FROM Booking
+    WHERE BookingDate = p_BookingDate
+      AND TableNumber = p_TableNumber;
+
+    IF tableBooked > 0 THEN
+        ROLLBACK;
+        SELECT CONCAT('Booking declined: Table ', p_TableNumber, ' is already booked on ', p_BookingDate) AS StatusMessage;
+    ELSE
+        INSERT INTO Booking (BookingDate, TableNumber, CustomerID)
+        VALUES (p_BookingDate, p_TableNumber, p_CustomerID);
+        COMMIT;
+        SELECT CONCAT('Booking confirmed: Table ', p_TableNumber, ' is booked on ', p_BookingDate) AS StatusMessage;
+    END IF;
+
+END //
+
+DELIMITER ;
+
+CALL AddValidBooking('2022-10-10', 5, 1);
+
+CALL AddValidBooking('2022-10-12', 3, 1);
+
+DELIMITER //
+
+CREATE PROCEDURE AddBooking (
+IN p_bookingID INT, IN p_customerID INT, IN p_bookingDate DATE,In table_no INT)
+BEGIN 
+	INSERT INTO Booking (BookingID, CustomerID, BookingDate, TableNumber)
+    VALUES (p_bookingID, p_customerID, p_bookingDate, table_no);
+
+    SELECT CONCAT('Booking successfully added: BookingID ', p_bookingID,
+                  ', CustomerID ', p_customerID,
+                  ', Table ', table_no,
+                  ' on ', p_bookingDate) AS ConfirmationMessage;
+END //
+
+DELIMITER ;
+CALL AddBooking(50, 2, '2022-12-01', 4);
+
+DELIMITER //
+
+CREATE PROCEDURE UpdateBooking(
+    IN p_BookingID INT,
+    IN p_NewBookingDate DATE
+)
+BEGIN
+    UPDATE Booking
+    SET BookingDate = p_NewBookingDate
+    WHERE BookingID = p_BookingID;
+
+    SELECT CONCAT('Booking ID ', p_BookingID, ' has been updated to new date: ', p_NewBookingDate) AS ConfirmationMessage;
+END //
+
+DELIMITER ;
+
+CALL UpdateBooking(2, '2022-12-15');
+
+DELIMITER //
+
+CREATE PROCEDURE CancelBooking(
+    IN p_BookingID INT
+)
+BEGIN
+    IF EXISTS (SELECT 1 FROM Booking WHERE BookingID = p_BookingID) THEN
+        DELETE FROM Booking WHERE BookingID = p_BookingID;
+        
+        SELECT CONCAT('Booking ID ', p_BookingID, ' has been successfully cancelled.') AS ConfirmationMessage;
+    ELSE
+        SELECT CONCAT('Booking ID ', p_BookingID, ' does not exist.') AS ConfirmationMessage;
+    END IF;
+END //
+
+DELIMITER ;
+
+CALL CancelBooking(50);
